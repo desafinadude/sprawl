@@ -408,7 +408,7 @@ $('#btnToMenu').onclick = toMenu;
 // ---------- rules ----------
 function showRules() {
   modal(`<h3>How to play</h3>
-    <p>Every card is a 2×2 city block of four zones:
+    <p>Every card is a 2×2 city block with one of each zone:
       ${ZONES.map((z) => `<i class="swatch" style="background:${ZONE_INFO[z].color}"></i>${ZONE_INFO[z].name}`).join(' ')}.
       Some carry roads.</p>
     <h4>Building</h4>

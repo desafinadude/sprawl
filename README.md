@@ -20,7 +20,7 @@ Games are auto-saved to the browser, so you can continue them later.
 
 ## Rules in short
 
-- Each card is a 2×2 block of zones (Housing, Market, Industry, Park), and some cards carry roads.
+- Each card is a 2×2 block with exactly one of each zone (Housing, Market, Industry, Park); most cards also carry roads.
 - A new card must touch your city and may cover up to 2 existing spaces.
 - Score: for each zone, the size of its largest connected group, minus 1 per separate road network, plus 3 random goals (13 in the pool).
 

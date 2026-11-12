@@ -77,10 +77,7 @@ export function makeDeck(count, rng, idStart = 0) {
   const total = ROAD_TEMPLATES.reduce((s, t) => s + t.w, 0);
   const deck = [];
   for (let n = 0; n < count; n++) {
-    let cells;
-    do {
-      cells = [0, 1, 2, 3].map(() => ZONES[Math.floor(rng() * 4)]);
-    } while (new Set(cells).size < 2 || (new Set(cells).size === 2 && rng() < 0.4));
+    const cells = shuffle(ZONES.slice(), rng); // every card has exactly one of each zone
     let pick = rng() * total, tpl = ROAD_TEMPLATES[0];
     for (const t of ROAD_TEMPLATES) { if ((pick -= t.w) < 0) { tpl = t; break; } }
     const base = rotated({ cells: [0, 1, 2, 3], roads: tpl.roads }, Math.floor(rng() * 4));
@@ -222,24 +219,24 @@ export const GOALS = [
       const empty = (b.maxX - b.minX + 1) * (b.maxY - b.minY + 1) - city.cells.size;
       return Math.max(0, 12 - empty);
     } },
-  { id: 'mixed', name: 'Mixed Use', text: '+1 per 2×2 area containing all four zone types.',
+  { id: 'mixed', name: 'Mixed Use', text: '+1 per 2×2 area containing all four zone types and spaces from at least 2 different cards.',
     score: ({ city, cells }) => {
       const b = city.bounds(); let n = 0;
       for (let y = b.minY; y < b.maxY; y++) for (let x = b.minX; x < b.maxX; x++) {
-        const s = new Set();
-        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const c = cells.get(key(x + dx, y + dy)); if (c) s.add(c.z); }
-        if (s.size === 4) n++;
+        const s = new Set(), ids = new Set();
+        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const c = cells.get(key(x + dx, y + dy)); if (c) { s.add(c.z); ids.add(c.id); } }
+        if (s.size === 4 && ids.size > 1) n++;
       }
       return n;
     } },
   { id: 'boulevard', name: 'Boulevard', text: '+1 per 2 road spaces in your largest road network.',
     score: ({ networks }) => Math.floor((networks[0]?.length || 0) / 2) },
-  { id: 'rows', name: 'Full Spectrum', text: '+1 per row and per column containing all four zone types.',
+  { id: 'rows', name: 'Full Spectrum', text: '+1 per 2 rows or columns containing all four zone types.',
     score: ({ city, cells }) => {
       const b = city.bounds(); let n = 0;
       for (let y = b.minY; y <= b.maxY; y++) { const s = new Set(); for (let x = b.minX; x <= b.maxX; x++) { const c = cells.get(key(x, y)); if (c) s.add(c.z); } if (s.size === 4) n++; }
       for (let x = b.minX; x <= b.maxX; x++) { const s = new Set(); for (let y = b.minY; y <= b.maxY; y++) { const c = cells.get(key(x, y)); if (c) s.add(c.z); } if (s.size === 4) n++; }
-      return n;
+      return Math.floor(n / 2);
     } },
   { id: 'twin', name: 'Twin Towns', text: '+2 per space in your second-largest Housing group.',
     score: ({ groups }) => 2 * (groups.home[1]?.length || 0) },
@@ -260,7 +257,7 @@ export function scoreCity(city, goalIds) {
 }
 
 export const SOLO_RANKS = [
-  [0, 'Ghost Town'], [30, 'Hamlet'], [38, 'Village'], [45, 'Town'], [52, 'City'], [60, 'Metropolis'],
+  [0, 'Ghost Town'], [25, 'Hamlet'], [32, 'Village'], [38, 'Town'], [44, 'City'], [50, 'Metropolis'],
 ];
 export function soloRank(total) {
   let r = SOLO_RANKS[0][1];
