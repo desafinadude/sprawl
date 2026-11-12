@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+  <meta name="theme-color" content="#2b2540">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <title>Blocktown</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <!-- Setup -->
+  <section id="menu" class="screen active">
+    <div class="menu-inner">
+      <h1 class="logo"><span>Block</span>town</h1>
+      <p class="tagline">Lay overlapping city blocks. Grow the biggest districts. Keep the roads together.</p>
+
+      <button id="btnContinue" class="btn primary wide hidden">Continue game</button>
+
+      <div class="card-box">
+        <div class="presets">
+          <button class="chip" data-preset="solo">Solo</button>
+          <button class="chip" data-preset="bot1">vs 1 bot</button>
+          <button class="chip" data-preset="bot3">vs 3 bots</button>
+          <button class="chip" data-preset="hot2">Hot-seat 2</button>
+        </div>
+        <div id="playerList" class="player-list"></div>
+        <button id="btnAddPlayer" class="btn ghost small">+ Add player</button>
+        <p id="modeNote" class="note"></p>
+      </div>
+
+      <button id="btnStart" class="btn primary wide">Start game</button>
+      <button id="btnRules" class="btn ghost wide">How to play</button>
+      <p class="fine">A fan-made card-laying city builder.</p>
+    </div>
+  </section>
+
+  <!-- Game -->
+  <section id="game" class="screen">
+    <header class="topbar">
+      <button id="btnMenu" class="icon-btn" aria-label="Menu">☰</button>
+      <div class="status">
+        <div id="statusTitle"></div>
+        <div id="statusSub"></div>
+      </div>
+      <button id="btnScore" class="score-btn" aria-label="Score breakdown"><small>Score</small><b id="scoreNow">0</b></button>
+    </header>
+
+    <div class="board-wrap">
+      <canvas id="board"></canvas>
+      <div class="board-tools">
+        <button id="btnFit" class="icon-btn" aria-label="Fit city">⤢</button>
+        <button id="btnCities" class="icon-btn hidden" aria-label="All cities">◫</button>
+      </div>
+      <div id="hint" class="hint">Pick a card from your hand</div>
+      <div id="placeBar" class="place-bar hidden">
+        <button id="btnCancel" class="icon-btn" aria-label="Cancel">✕</button>
+        <button id="btnRotate" class="icon-btn" aria-label="Rotate">⟳</button>
+        <div id="preview" class="preview"></div>
+        <button id="btnConfirm" class="btn primary">Place</button>
+      </div>
+      <div id="toast" class="toast"></div>
+    </div>
+
+    <aside class="panel">
+      <div class="panel-head"><span id="handLabel">Your hand</span><span id="handInfo"></span></div>
+      <div id="hand" class="hand"></div>
+      <div class="panel-head"><span>Goals</span></div>
+      <div id="goals" class="goals"></div>
+    </aside>
+  </section>
+
+  <!-- Pass device -->
+  <section id="pass" class="screen">
+    <div class="pass-inner">
+      <p>Pass the device to</p>
+      <h2 id="passName"></h2>
+      <p id="passInfo" class="note"></p>
+      <button id="btnReady" class="btn primary wide">I'm ready</button>
+    </div>
+  </section>
+
+  <!-- Results -->
+  <section id="results" class="screen">
+    <div class="results-inner">
+      <h2 id="resTitle"></h2>
+      <p id="resSub" class="note"></p>
+      <div id="resCities" class="res-cities"></div>
+      <div class="table-wrap"><table id="resTable"></table></div>
+      <div class="res-actions">
+        <button id="btnAgain" class="btn primary">Play again</button>
+        <button id="btnToMenu" class="btn ghost">Menu</button>
+      </div>
+    </div>
+  </section>
+
+  <dialog id="modal">
+    <div class="modal-body" id="modalBody"></div>
+    <form method="dialog"><button class="btn ghost wide">Close</button></form>
+  </dialog>
+
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

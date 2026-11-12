@@ -1,0 +1,10 @@
+{
+  "name": "Blocktown",
+  "short_name": "Blocktown",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f3efe6",
+  "theme_color": "#2b2540",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
