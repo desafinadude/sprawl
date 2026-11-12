@@ -1,16 +1,15 @@
 // Game flow: solo challenge and pass-the-hand drafting for 2–4 players (humans and/or bots).
-import {
-  City, makeDeck, makeRng, shuffle, GOALS, SOLO_HAND, SOLO_PLAYS, DRAFT_HAND, DRAFT_ROUNDS, scoreCity,
-} from './rules.js';
+import { City, makeDeck, makeRng, shuffle, scoreCity, R, loadRuleset } from './rules.js';
 
+// Uses the ruleset currently loaded with loadRuleset(); a copy is kept in the state for saves.
 export function newGame({ players, seed = (Math.random() * 2 ** 32) >>> 0, goals }) {
   const rng = makeRng(seed);
   const mode = players.length === 1 ? 'solo' : 'draft';
-  const goalIds = goals || shuffle(GOALS.map((g) => g.id), rng).slice(0, 3);
+  const goalIds = goals || shuffle(R.goals.map((g) => g.id), rng).slice(0, R.goalsPerGame);
   const n = players.length;
   const deck = mode === 'solo'
-    ? makeDeck(1 + SOLO_PLAYS, rng)
-    : makeDeck(n * (1 + DRAFT_ROUNDS * DRAFT_HAND), rng);
+    ? makeDeck(1 + R.solo.plays, rng)
+    : makeDeck(n * (1 + R.draft.rounds * R.draft.hand), rng);
 
   const ps = players.map((p, i) => {
     const city = new City();
@@ -20,21 +19,21 @@ export function newGame({ players, seed = (Math.random() * 2 ** 32) >>> 0, goals
     return { name: p.name || `Player ${i + 1}`, type: p.type || 'human', level: p.level || 'normal', city, hand: [] };
   });
 
-  const state = { seed, mode, goals: goalIds, players: ps, deck, round: 0, pick: 0, turn: 0, over: false, discards: 0 };
-  if (mode === 'solo') ps[0].hand = deck.splice(0, SOLO_HAND);
+  const state = { ruleset: R.data, seed, mode, goals: goalIds, players: ps, deck, round: 0, pick: 0, turn: 0, over: false, discards: 0 };
+  if (mode === 'solo') ps[0].hand = deck.splice(0, R.solo.hand);
   else deal(state);
   return state;
 }
 
 function deal(state) {
-  for (const p of state.players) p.hand = state.deck.splice(0, DRAFT_HAND);
+  for (const p of state.players) p.hand = state.deck.splice(0, R.draft.hand);
 }
 
 export const current = (state) => state.players[state.turn];
 export const humans = (state) => state.players.filter((p) => p.type === 'human').length;
 
 export function picksTotal(state) {
-  return state.mode === 'solo' ? SOLO_PLAYS : DRAFT_ROUNDS * (DRAFT_HAND - 1);
+  return state.mode === 'solo' ? R.solo.plays : R.draft.rounds * (R.draft.hand - 1);
 }
 
 export function playCard(state, handIndex, rot, x, y) {
@@ -60,11 +59,11 @@ function advance(state) {
   if (state.turn < n) return;
   state.turn = 0;
   state.pick++;
-  if (state.pick >= DRAFT_HAND - 1) {
+  if (state.pick >= R.draft.hand - 1) {
     state.discards += n;
     state.round++;
     state.pick = 0;
-    if (state.round >= DRAFT_ROUNDS) { state.over = true; for (const p of state.players) p.hand = []; return; }
+    if (state.round >= R.draft.rounds) { state.over = true; for (const p of state.players) p.hand = []; return; }
     deal(state);
   } else {
     // pass hands: left on even rounds, right on odd rounds
@@ -90,6 +89,7 @@ export function serialize(state) {
 }
 export function deserialize(json) {
   const o = JSON.parse(json);
+  if (o.ruleset) loadRuleset(o.ruleset);
   o.players.forEach((p) => { p.city = City.fromJSON(p.city); });
   return o;
 }

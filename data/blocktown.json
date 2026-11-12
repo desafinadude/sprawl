@@ -1,0 +1,126 @@
+{
+  "name": "Blocktown",
+  "description": "The default Blocktown set: 36 city blocks and 13 goals.",
+  "zones": [
+    {
+      "id": "home",
+      "name": "Housing",
+      "color": "#f4c95d",
+      "icon": "house",
+      "largestGroupPoints": 1
+    },
+    {
+      "id": "shop",
+      "name": "Market",
+      "color": "#5aa9e6",
+      "icon": "shop",
+      "largestGroupPoints": 1
+    },
+    {
+      "id": "work",
+      "name": "Industry",
+      "color": "#b0a3b8",
+      "icon": "factory",
+      "largestGroupPoints": 1
+    },
+    {
+      "id": "park",
+      "name": "Park",
+      "color": "#7cc47f",
+      "icon": "tree",
+      "largestGroupPoints": 1
+    }
+  ],
+  "rules": {
+    "maxOverlap": 2,
+    "roadNetworkPoints": -1,
+    "goalsPerGame": 3,
+    "solo": {
+      "plays": 15,
+      "hand": 3,
+      "ranks": [
+        [
+          0,
+          "Ghost Town"
+        ],
+        [
+          25,
+          "Hamlet"
+        ],
+        [
+          32,
+          "Village"
+        ],
+        [
+          38,
+          "Town"
+        ],
+        [
+          44,
+          "City"
+        ],
+        [
+          50,
+          "Metropolis"
+        ]
+      ]
+    },
+    "draft": {
+      "rounds": 5,
+      "hand": 4
+    }
+  },
+  "goals": [
+    {"id":"quiet","name":"Quiet Streets","text":"+1 per Housing space with no road.","count":{"what":"spaces","zone":"home","road":false},"points":1},
+    {"id":"main","name":"Main Street","text":"+1 per Market space with a road.","count":{"what":"spaces","zone":"shop","road":true},"points":1},
+    {"id":"freight","name":"Freight Lines","text":"+1 per Industry space with a road.","count":{"what":"spaces","zone":"work","road":true},"points":1},
+    {"id":"belt","name":"Green Belt","text":"+1 per Park space next to an empty space.","count":{"what":"spaces","zone":"park","touchingEmpty":true},"points":1},
+    {"id":"corner","name":"Corner Shops","text":"+1 per Market space touching 2 or more Housing spaces.","count":{"what":"spaces","zone":"shop","touching":{"zone":"home","min":2}},"points":1},
+    {"id":"air","name":"Clean Air","text":"10, minus 1 for each pair of touching Housing and Industry spaces.","count":{"what":"pairs","a":"home","b":"work"},"points":-1,"base":10},
+    {"id":"estates","name":"Industrial Estates","text":"+3 per Industry group of 3 or more spaces.","count":{"what":"groups","zone":"work","minSize":3},"points":3},
+    {"id":"pocket","name":"Pocket Parks","text":"+1 per Park group of exactly 1 space.","count":{"what":"groups","zone":"park","minSize":1,"maxSize":1},"points":1},
+    {"id":"compact","name":"Compact City","text":"12, minus 1 per empty space inside your city's bounding box (min 0).","count":{"what":"emptyInBounds"},"points":-1,"base":12,"min":0},
+    {"id":"mixed","name":"Mixed Use","text":"+1 per 2×2 area containing all four zone types and spaces from at least 2 different cards.","count":{"what":"squares","zones":["home","shop","work","park"],"minCards":2},"points":1},
+    {"id":"boulevard","name":"Boulevard","text":"+1 per 2 road spaces in your largest road network.","count":{"what":"roadLength","rank":1},"points":1,"per":2},
+    {"id":"rows","name":"Full Spectrum","text":"+1 per 2 rows or columns containing all four zone types.","count":{"what":"lines","zones":["home","shop","work","park"],"direction":"both"},"points":1,"per":2},
+    {"id":"twin","name":"Twin Towns","text":"+2 per space in your second-largest Housing group.","count":{"what":"groupSize","zone":"home","rank":2},"points":2}
+  ],
+  "cards": [
+    {"id":"B01","layout":[["home","work"],["shop","park"]],"roads":[["EW","ESW"],["","NS"]]},
+    {"id":"B02","layout":[["park","shop"],["work","home"]],"roads":[["","NS"],["EW","NW"]]},
+    {"id":"B03","layout":[["shop","home"],["work","park"]],"roads":[["",""],["",""]]},
+    {"id":"B04","layout":[["shop","work"],["park","home"]],"roads":[["EW","SW"],["","NE"]]},
+    {"id":"B05","layout":[["shop","work"],["home","park"]],"roads":[["NS",""],["NEW","EW"]]},
+    {"id":"B06","layout":[["shop","work"],["park","home"]],"roads":[["",""],["EW","EW"]]},
+    {"id":"B07","layout":[["park","work"],["home","shop"]],"roads":[["NS",""],["N",""]]},
+    {"id":"B08","layout":[["work","shop"],["park","home"]],"roads":[["",""],["EW","EW"]]},
+    {"id":"B09","layout":[["shop","park"],["home","work"]],"roads":[["EW","EW"],["",""]]},
+    {"id":"B10","layout":[["home","park"],["shop","work"]],"roads":[["",""],["",""]]},
+    {"id":"B11","layout":[["park","shop"],["work","home"]],"roads":[["",""],["EW","W"]]},
+    {"id":"B12","layout":[["shop","work"],["home","park"]],"roads":[["","NS"],["EW","NW"]]},
+    {"id":"B13","layout":[["shop","work"],["park","home"]],"roads":[["EW","EW"],["",""]]},
+    {"id":"B14","layout":[["home","work"],["park","shop"]],"roads":[["",""],["EW","EW"]]},
+    {"id":"B15","layout":[["work","park"],["home","shop"]],"roads":[["",""],["",""]]},
+    {"id":"B16","layout":[["home","park"],["work","shop"]],"roads":[["NS",""],["NE","EW"]]},
+    {"id":"B17","layout":[["shop","home"],["work","park"]],"roads":[["",""],["",""]]},
+    {"id":"B18","layout":[["park","shop"],["home","work"]],"roads":[["",""],["",""]]},
+    {"id":"B19","layout":[["home","park"],["shop","work"]],"roads":[["",""],["",""]]},
+    {"id":"B20","layout":[["park","shop"],["home","work"]],"roads":[["NS",""],["NEW","EW"]]},
+    {"id":"B21","layout":[["work","home"],["park","shop"]],"roads":[["NS",""],["NS",""]]},
+    {"id":"B22","layout":[["shop","home"],["work","park"]],"roads":[["NS",""],["NS",""]]},
+    {"id":"B23","layout":[["park","work"],["shop","home"]],"roads":[["EW","ESW"],["","NS"]]},
+    {"id":"B24","layout":[["park","home"],["shop","work"]],"roads":[["NES","EW"],["NS",""]]},
+    {"id":"B25","layout":[["home","work"],["shop","park"]],"roads":[["NS",""],["NS",""]]},
+    {"id":"B26","layout":[["home","work"],["park","shop"]],"roads":[["",""],["",""]]},
+    {"id":"B27","layout":[["park","home"],["work","shop"]],"roads":[["","NS"],["","NS"]]},
+    {"id":"B28","layout":[["shop","home"],["park","work"]],"roads":[["","NS"],["ES","NW"]]},
+    {"id":"B29","layout":[["shop","home"],["work","park"]],"roads":[["",""],["",""]]},
+    {"id":"B30","layout":[["home","park"],["shop","work"]],"roads":[["ES","NW"],["NS",""]]},
+    {"id":"B31","layout":[["work","home"],["shop","park"]],"roads":[["SW",""],["NE","EW"]]},
+    {"id":"B32","layout":[["home","park"],["shop","work"]],"roads":[["","NS"],["","NS"]]},
+    {"id":"B33","layout":[["park","work"],["home","shop"]],"roads":[["NS",""],["NEW","EW"]]},
+    {"id":"B34","layout":[["home","work"],["shop","park"]],"roads":[["",""],["EW","EW"]]},
+    {"id":"B35","layout":[["park","work"],["home","shop"]],"roads":[["NS",""],["NS",""]]},
+    {"id":"B36","layout":[["work","shop"],["home","park"]],"roads":[["EW","EW"],["",""]]}
+  ]
+}

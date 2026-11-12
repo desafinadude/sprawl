@@ -32,6 +32,17 @@
         <p id="modeNote" class="note"></p>
       </div>
 
+      <div class="card-box">
+        <label class="field-label" for="rulesetSelect">Rules &amp; cards</label>
+        <select id="rulesetSelect" class="select"></select>
+        <p id="rulesetInfo" class="note"></p>
+        <div class="row-btns">
+          <button id="btnLoadRules" class="btn ghost small">Load JSON…</button>
+          <button id="btnSaveRules" class="btn ghost small">Download JSON</button>
+        </div>
+        <input id="rulesFile" type="file" accept=".json,application/json" hidden>
+      </div>
+
       <button id="btnStart" class="btn primary wide">Start game</button>
       <button id="btnRules" class="btn ghost wide">How to play</button>
       <p class="fine">A fan-made card-laying city builder.</p>

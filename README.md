@@ -18,22 +18,28 @@ Modes (set up on the start screen, 1–4 players):
 
 Games are auto-saved to the browser, so you can continue them later.
 
-## Rules in short
+## Rules in short (default set)
 
 - Each card is a 2×2 block with exactly one of each zone (Housing, Market, Industry, Park); most cards also carry roads.
 - A new card must touch your city and may cover up to 2 existing spaces.
 - Score: for each zone, the size of its largest connected group, minus 1 per separate road network, plus 3 random goals (13 in the pool).
 
+## Your own cards and rules
+
+All cards, zones, goals and numbers come from a JSON file (`data/blocktown.json`). Pick a ruleset on the start
+screen, or **Download JSON**, edit it, then **Load JSON…**. See [RULESET.md](RULESET.md) for the format.
+
 ## Code
 
 | File | What it does |
 | --- | --- |
-| `js/rules.js` | Cards, deck generation, city grid, placement checks, goals, scoring (no DOM) |
+| `data/*.json` | Rulesets: zones, cards, goals, rule numbers ([format](RULESET.md)) |
+| `js/rules.js` | Ruleset loading/validation, city grid, placement, goal counters, scoring (no DOM) |
 | `js/game.js` | Solo and draft flow, save/load |
 | `js/bot.js` | Greedy bots (tries every card, rotation and spot) |
 | `js/board.js` | Canvas rendering, pan/pinch/zoom, ghost-card dragging |
 | `js/app.js` | Screens and UI |
-| `tools/sim.mjs` | Bot-vs-bot simulation for balancing: `node tools/sim.mjs 50` |
+| `tools/sim.mjs` | Bot-vs-bot simulation for balancing: `node tools/sim.mjs 50 [ruleset.json]` |
 
 ## Adding art
 

@@ -23,22 +23,24 @@ const shade = (hex, f) => {
 };
 
 function glyph(ctx, z, cx, cy, s) {
-  const col = shade(ZONE_INFO[z].color, 0.55);
+  const info = ZONE_INFO[z] || { color: '#cccccc', icon: '?' };
+  const icon = info.icon;
+  const col = shade(info.color, 0.55);
   ctx.fillStyle = col; ctx.strokeStyle = col; ctx.lineWidth = Math.max(1, s * 0.08);
   ctx.beginPath();
-  if (z === 'home') {
+  if (icon === 'house') {
     ctx.moveTo(cx - s * 0.42, cy - s * 0.02); ctx.lineTo(cx, cy - s * 0.42); ctx.lineTo(cx + s * 0.42, cy - s * 0.02);
     ctx.closePath(); ctx.fill();
     ctx.fillRect(cx - s * 0.3, cy - s * 0.04, s * 0.6, s * 0.42);
-    ctx.fillStyle = ZONE_INFO[z].color; ctx.fillRect(cx - s * 0.08, cy + s * 0.12, s * 0.16, s * 0.26);
-  } else if (z === 'shop') {
+    ctx.fillStyle = info.color; ctx.fillRect(cx - s * 0.08, cy + s * 0.12, s * 0.16, s * 0.26);
+  } else if (icon === 'shop') {
     ctx.fillRect(cx - s * 0.38, cy - s * 0.05, s * 0.76, s * 0.43);
     for (let i = 0; i < 4; i++) {
       ctx.fillStyle = i % 2 ? '#fff' : col;
       ctx.fillRect(cx - s * 0.44 + i * s * 0.22, cy - s * 0.32, s * 0.22, s * 0.22);
     }
-    ctx.fillStyle = ZONE_INFO[z].color; ctx.fillRect(cx - s * 0.26, cy + s * 0.06, s * 0.52, s * 0.18);
-  } else if (z === 'work') {
+    ctx.fillStyle = info.color; ctx.fillRect(cx - s * 0.26, cy + s * 0.06, s * 0.52, s * 0.18);
+  } else if (icon === 'factory') {
     ctx.moveTo(cx - s * 0.42, cy + s * 0.38); ctx.lineTo(cx - s * 0.42, cy - s * 0.05);
     ctx.lineTo(cx - s * 0.18, cy - s * 0.22); ctx.lineTo(cx - s * 0.18, cy - s * 0.05);
     ctx.lineTo(cx + s * 0.06, cy - s * 0.22); ctx.lineTo(cx + s * 0.06, cy - s * 0.05);
@@ -46,15 +48,20 @@ function glyph(ctx, z, cx, cy, s) {
     ctx.lineTo(cx + s * 0.36, cy - s * 0.42); ctx.lineTo(cx + s * 0.36, cy - s * 0.05);
     ctx.lineTo(cx + s * 0.42, cy - s * 0.05); ctx.lineTo(cx + s * 0.42, cy + s * 0.38);
     ctx.closePath(); ctx.fill();
-  } else {
+  } else if (icon === 'tree') {
     ctx.fillRect(cx - s * 0.05, cy + s * 0.05, s * 0.1, s * 0.33);
     ctx.arc(cx, cy - s * 0.1, s * 0.3, 0, Math.PI * 2); ctx.fill();
+  } else {
+    // any other icon value is drawn as text (a letter or emoji)
+    ctx.font = `700 ${Math.round(s * 0.75)}px system-ui, sans-serif`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(String(icon).slice(0, 2), cx, cy + s * 0.04);
   }
 }
 
 // Draw a single 1×1 space at pixel (px,py) with side `size`.
 export function drawCell(ctx, px, py, size, z, r) {
-  const info = ZONE_INFO[z];
+  const info = ZONE_INFO[z] || { color: '#cccccc' };
   const art = ART[z];
   if (art) ctx.drawImage(art, px, py, size, size);
   else {

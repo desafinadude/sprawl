@@ -149,3 +149,7 @@ dialog[open] { display: flex; flex-direction: column; gap: 12px; }
 .city-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
 .city-list .res-city canvas { height: 140px; }
 .menu-actions { display: flex; flex-direction: column; gap: 8px; }
+
+.field-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.select { font: inherit; padding: 9px 10px; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); width: 100%; }
+.row-btns { display: flex; gap: 8px; flex-wrap: wrap; }

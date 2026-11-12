@@ -1,7 +1,10 @@
-// Bot-vs-bot simulation for balancing: node tools/sim.mjs [games]
+// Bot-vs-bot simulation for balancing.
 import { newGame, current, playCard, results } from '../js/game.js';
 import { chooseMove } from '../js/bot.js';
-import { GOALS } from '../js/rules.js';
+import { loadRuleset } from '../js/rules.js';
+import { readFileSync } from 'node:fs';
+// usage: node tools/sim.mjs [games] [ruleset.json]
+loadRuleset(JSON.parse(readFileSync(process.argv[3] || new URL('../data/blocktown.json', import.meta.url), 'utf8')));
 const games = +process.argv[2] || 30;
 for (const mode of ['solo', 'draft']) {
   const totals = [], perGoal = {}; let t0 = Date.now(), turns = 0;

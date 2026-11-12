@@ -1,4 +1,4 @@
-import { ZONES, ZONE_INFO, rotated, cardCells, scoreCity, goalById, soloRank, SOLO_RANKS, MAX_OVERLAP, DRAFT_ROUNDS, DRAFT_HAND } from './rules.js';
+import { ZONES, ZONE_INFO, R, rotated, cardCells, scoreCity, goalById, soloRank, loadRuleset, validateRuleset } from './rules.js';
 import { newGame, current, humans, playCard, results, serialize, deserialize, picksTotal, passDirection } from './game.js';
 import { chooseMove } from './bot.js';
 import { Board, drawCardCanvas, renderCityThumb, loadArt } from './board.js';
@@ -73,11 +73,11 @@ function renderSetup() {
   $('#btnAddPlayer').classList.toggle('hidden', setup.length >= 4);
   const h = setup.filter((p) => p.type === 'human').length;
   let note;
-  if (setup.length === 1) note = `Solo challenge: ${picksTotal({ mode: 'solo' })} cards, hand of 3. Aim for ${SOLO_RANKS[SOLO_RANKS.length - 1][0]}+ to build a ${SOLO_RANKS[SOLO_RANKS.length - 1][1]}.`;
-  else note = `Draft game: ${DRAFT_ROUNDS} rounds. Each round you're dealt ${DRAFT_HAND} cards — keep one, pass the rest. ${h > 1 ? 'Pass the device between human players.' : ''}`;
+  if (setup.length === 1) note = `Solo challenge: ${picksTotal({ mode: 'solo' })} cards, hand of ${R.solo.hand}. Aim for ${R.solo.ranks[R.solo.ranks.length - 1][0]}+ to build a ${R.solo.ranks[R.solo.ranks.length - 1][1]}.`;
+  else note = `Draft game: ${R.draft.rounds} rounds. Each round you're dealt ${R.draft.hand} cards — keep one, pass the rest. ${h > 1 ? 'Pass the device between human players.' : ''}`;
   if (h === 0) note = 'Need at least one human player.';
   $('#modeNote').textContent = note;
-  $('#btnStart').disabled = h === 0;
+  $('#btnStart').disabled = h === 0 || !selectedData;
   document.querySelectorAll('.chip[data-preset]').forEach((c) => {
     c.classList.toggle('on', JSON.stringify(PRESETS[c.dataset.preset]) === JSON.stringify(setup));
   });
@@ -126,6 +126,7 @@ const board = new Board($('#board'), {
 loadArt(() => { board.draw(); if (state) renderHand(); });
 
 function startGame(players) {
+  loadRuleset(selectedData);
   config = players;
   state = newGame({ players });
   lastHuman = null; viewing = null;
@@ -171,7 +172,7 @@ function passTo(i) {
   const p = state.players[i];
   $('#passName').textContent = p.name;
   $('#passInfo').textContent = state.mode === 'draft'
-    ? `Round ${state.round + 1} of ${DRAFT_ROUNDS} · pick ${state.pick + 1} of ${DRAFT_HAND - 1}`
+    ? `Round ${state.round + 1} of ${R.draft.rounds} · pick ${state.pick + 1} of ${R.draft.hand - 1}`
     : '';
   show('pass');
 }
@@ -201,10 +202,10 @@ function renderGame() {
   if (state.mode === 'solo') {
     const played = viewer.city.placed;
     $('#statusTitle').textContent = `Card ${Math.min(played + 1, picksTotal(state))} of ${picksTotal(state)}`;
-    const next = SOLO_RANKS.find(([t]) => t > sc.total);
+    const next = R.solo.ranks.find(([t]) => t > sc.total);
     $('#statusSub').textContent = `${state.deck.length} left in deck${next ? ` · ${next[1]} at ${next[0]}` : ''}`;
   } else {
-    $('#statusTitle').textContent = `Round ${state.round + 1}/${DRAFT_ROUNDS} · Pick ${state.pick + 1}/${DRAFT_HAND - 1}`;
+    $('#statusTitle').textContent = `Round ${state.round + 1}/${R.draft.rounds} · Pick ${state.pick + 1}/${R.draft.hand - 1}`;
     $('#statusSub').textContent = busy ? `${p.name} is thinking…` : `${possessive(viewer.name)} city · pass ${passDirection(state)}`;
   }
   $('#handLabel').textContent = busy ? 'Waiting…' : `${possessive(p.name)} hand`;
@@ -341,12 +342,12 @@ $('#btnConfirm').onclick = () => {
 $('#btnScore').onclick = () => {
   const v = state.players[viewing ?? state.turn];
   modal(`<h3>${escapeHtml(possessive(v.name))} score</h3>${breakdownHtml(scoreCity(v.city, state.goals))}
-    <p class="note">Each zone scores its single largest connected group. Every separate road network costs 1.</p>`);
+    <p class="note">Each zone scores its single largest connected group. Each separate road network scores ${R.roadNetworkPoints}.</p>`);
 };
 
 function breakdownHtml(sc) {
   const row = (l, v) => `<div class="bd-row"><span>${l}</span><b>${v}</b></div>`;
-  return ZONES.map((z) => row(`<i class="swatch" style="background:${ZONE_INFO[z].color}"></i>Largest ${ZONE_INFO[z].name}`, sc.zones[z])).join('')
+  return ZONES.filter((z) => ZONE_INFO[z].largestGroupPoints).map((z) => row(`<i class="swatch" style="background:${ZONE_INFO[z].color}"></i>Largest ${ZONE_INFO[z].name}`, sc.zones[z])).join('')
     + row(`Road networks (${sc.roads})`, sc.roadPenalty)
     + sc.goals.map((g) => row('Goal · ' + g.name, g.pts)).join('')
     + `<div class="bd-row total"><span>Total</span><b>${sc.total}</b></div>`;
@@ -372,6 +373,7 @@ $('#btnMenu').onclick = () => {
 
 function toMenu() {
   state = null; busy = false;
+  if (selectedData) loadRuleset(selectedData);
   renderSetup();
   show('menu');
 }
@@ -385,7 +387,7 @@ function finish() {
   const winners = rows.filter((r) => r.winner);
   if (solo) {
     $('#resTitle').textContent = `${rows[0].total} points — ${soloRank(rows[0].total)}`;
-    const next = SOLO_RANKS.find(([t]) => t > rows[0].total);
+    const next = R.solo.ranks.find(([t]) => t > rows[0].total);
     $('#resSub').textContent = next ? `${next[0] - rows[0].total} more for ${next[1]}.` : 'Top rank! Can you beat your score?';
   } else {
     $('#resTitle').textContent = winners.length > 1 ? `Tie: ${winners.map((w) => w.name).join(' & ')}` : `${winners[0].name} wins!`;
@@ -397,7 +399,7 @@ function finish() {
   const head = `<tr><th></th>${rows.map((r) => `<th>${escapeHtml(r.name)}</th>`).join('')}</tr>`;
   const line = (label, fn, cls = '') => `<tr class="${cls}"><td>${label}</td>${rows.map((r) => `<td>${fn(r)}</td>`).join('')}</tr>`;
   $('#resTable').innerHTML = head
-    + ZONES.map((z) => line(`<i class="swatch" style="background:${ZONE_INFO[z].color}"></i>${ZONE_INFO[z].name}`, (r) => r.zones[z])).join('')
+    + ZONES.filter((z) => ZONE_INFO[z].largestGroupPoints).map((z) => line(`<i class="swatch" style="background:${ZONE_INFO[z].color}"></i>${ZONE_INFO[z].name}`, (r) => r.zones[z])).join('')
     + line('Roads', (r) => r.roadPenalty)
     + state.goals.map((id, gi) => line(goalById(id).name, (r) => r.goals[gi].pts)).join('')
     + line('Total', (r) => r.total, 'total');
@@ -407,34 +409,105 @@ $('#btnToMenu').onclick = toMenu;
 
 // ---------- rules ----------
 function showRules() {
-  modal(`<h3>How to play</h3>
-    <p>Every card is a 2×2 city block with one of each zone:
+  modal(`<h3>How to play</h3><p class="note">Rules: <b>${escapeHtml(R.name)}</b></p>
+    <p>Every card is a 2×2 city block of zones:
       ${ZONES.map((z) => `<i class="swatch" style="background:${ZONE_INFO[z].color}"></i>${ZONE_INFO[z].name}`).join(' ')}.
       Some carry roads.</p>
     <h4>Building</h4>
     <ul>
       <li>Pick a card, then drag or tap the board to position it. Tap the card again (or ⟳) to rotate.</li>
       <li>It must touch your city, edge to edge or by overlapping it.</li>
-      <li>You may cover up to ${MAX_OVERLAP} existing spaces — covered spaces are replaced.</li>
+      <li>You may cover up to ${R.maxOverlap} existing spaces — covered spaces are replaced.</li>
     </ul>
     <h4>Scoring</h4>
     <ul>
       <li>For each zone, score 1 point per space in your <b>largest</b> connected group of that zone.</li>
-      <li>Lose 1 point for each separate road network. Connect your roads!</li>
-      <li>Plus three random <b>goals</b> shown under your hand.</li>
+      <li>Each separate road network scores ${R.roadNetworkPoints}. Connect your roads!</li>
+      <li>Plus ${R.goalsPerGame} random <b>goals</b> shown under your hand.</li>
     </ul>
     <h4>Solo</h4>
-    <p>Hold 3 cards; play one, draw one, until ${picksTotal({ mode: 'solo' })} cards are built. Ranks:
-      ${SOLO_RANKS.slice(1).map(([t, n]) => `${n} ${t}+`).join(', ')}.</p>
+    <p>Hold ${R.solo.hand} cards; play one, draw one, until ${picksTotal({ mode: 'solo' })} cards are built. Ranks:
+      ${R.solo.ranks.slice(1).map(([t, n]) => `${n} ${t}+`).join(', ')}.</p>
     <h4>Draft (2–4 players)</h4>
-    <p>Everyone builds their own city. Each round you're dealt ${DRAFT_HAND} cards: build one and pass the rest
+    <p>Everyone builds their own city. Each round you're dealt ${R.draft.hand} cards: build one and pass the rest
       (left, then right on alternate rounds) until one card is left, which is discarded.
-      After ${DRAFT_ROUNDS} rounds the highest score wins. Bots and humans can mix; humans pass the device.</p>
+      After ${R.draft.rounds} rounds the highest score wins. Bots and humans can mix; humans pass the device.</p>
     <h4>Controls</h4>
     <p>Drag to pan, pinch or scroll to zoom, ⤢ to fit the city.</p>`);
 }
 
+// ---------- rulesets ----------
+// Built-in rulesets are listed in data/rulesets.json. A custom JSON can be loaded from the device
+// and is kept in localStorage.
+const RS_KEY = 'blocktown.ruleset.v1';
+const CUSTOM_KEY = 'blocktown.customRuleset.v1';
+let rulesets = []; // [{key, name, data}]
+let selectedData = null;
+
+async function loadRulesets() {
+  rulesets = [];
+  let files = ['blocktown.json'];
+  try { files = await (await fetch('data/rulesets.json', { cache: 'no-cache' })).json(); } catch { /* use default */ }
+  for (const f of files) {
+    try {
+      const data = await (await fetch('data/' + f, { cache: 'no-cache' })).json();
+      const errs = validateRuleset(data);
+      if (errs.length) { console.warn(f, errs); rulesetError(`data/${f} has problems:`, errs); continue; }
+      rulesets.push({ key: f, name: data.name || f, data });
+    } catch (e) { rulesetError(`Could not read data/${f}:`, [e.message]); }
+  }
+  const custom = store.get(CUSTOM_KEY);
+  if (custom) {
+    try {
+      const data = JSON.parse(custom);
+      if (!validateRuleset(data).length) rulesets.push({ key: 'custom', name: 'Custom: ' + (data.name || 'my rules'), data });
+    } catch { store.del(CUSTOM_KEY); }
+  }
+  const want = store.get(RS_KEY);
+  selectRuleset((rulesets.find((r) => r.key === want) || rulesets[0])?.key);
+}
+
+function selectRuleset(k) {
+  const rs = rulesets.find((r) => r.key === k);
+  if (!rs) return;
+  store.set(RS_KEY, k);
+  selectedData = rs.data;
+  loadRuleset(rs.data);
+  const sel = $('#rulesetSelect');
+  sel.innerHTML = rulesets.map((r) => `<option value="${escapeHtml(r.key)}" ${r.key === k ? 'selected' : ''}>${escapeHtml(r.name)}</option>`).join('');
+  $('#rulesetInfo').textContent = `${rs.data.description ? rs.data.description + ' ' : ''}${R.cards.length} cards · ${R.goals.length} goals.`;
+  renderSetup();
+}
+
+function rulesetError(title, errs) {
+  modal(`<h3>Ruleset problem</h3><p>${escapeHtml(title)}</p><ul>${errs.slice(0, 30).map((e) => `<li>${escapeHtml(e)}</li>`).join('')}</ul>`);
+}
+
+$('#rulesetSelect').onchange = (e) => selectRuleset(e.target.value);
+$('#btnLoadRules').onclick = () => $('#rulesFile').click();
+$('#rulesFile').onchange = async (e) => {
+  const f = e.target.files[0];
+  e.target.value = '';
+  if (!f) return;
+  let data;
+  try { data = JSON.parse(await f.text()); } catch (err) { return rulesetError(`${f.name} isn't valid JSON:`, [err.message]); }
+  const errs = validateRuleset(data);
+  if (errs.length) return rulesetError(`${f.name} has problems:`, errs);
+  store.set(CUSTOM_KEY, JSON.stringify(data));
+  rulesets = rulesets.filter((r) => r.key !== 'custom');
+  rulesets.push({ key: 'custom', name: 'Custom: ' + (data.name || f.name), data });
+  selectRuleset('custom');
+};
+$('#btnSaveRules').onclick = () => {
+  const blob = new Blob([JSON.stringify(selectedData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = (selectedData.name || 'rules').toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.json';
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+
 // ---------- boot ----------
-renderSetup();
 show('menu');
+loadRulesets();
 document.addEventListener('gesturestart', (e) => e.preventDefault());

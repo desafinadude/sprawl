@@ -1,12 +1,15 @@
-// Core rules for Blocktown: cards, city grid, placement and scoring.
+// Core rules engine. All game content (zones, cards, goals, numbers) comes from a ruleset JSON
+// loaded with loadRuleset(); see data/blocktown.json and the README for the format.
 // Pure logic, no DOM — shared by the UI, the bots and the node sim tool.
 
-export const ZONES = ['home', 'shop', 'work', 'park'];
-export const ZONE_INFO = {
-  home: { name: 'Housing', short: 'Homes', color: '#f4c95d' },
-  shop: { name: 'Market', short: 'Shops', color: '#5aa9e6' },
-  work: { name: 'Industry', short: 'Works', color: '#b0a3b8' },
-  park: { name: 'Park', short: 'Parks', color: '#7cc47f' },
+// ---------- Active ruleset (mutated in place by loadRuleset) ----------
+export const ZONES = [];
+export const ZONE_INFO = {};
+export const R = {
+  name: '', maxOverlap: 2, roadNetworkPoints: -1, goalsPerGame: 3,
+  solo: { plays: 15, hand: 3, ranks: [[0, 'Unranked']] },
+  draft: { rounds: 5, hand: 4 },
+  cards: [], goals: [], data: null,
 };
 
 // Road sides as a bitmask per cell. All sides present in a cell meet at its centre.
@@ -17,13 +20,81 @@ export const DIRS = [
   { bit: S, dx: 0, dy: 1, opp: N },
   { bit: W, dx: -1, dy: 0, opp: E },
 ];
+const SIDE_BITS = { N, E, S, W };
 const rotSides = (m) => ((m << 1) | (m >> 3)) & 15; // N→E→S→W→N
 
-export const MAX_OVERLAP = 2; // a new card may cover at most this many cells
-export const DRAFT_ROUNDS = 5;
-export const DRAFT_HAND = 4; // cards dealt per player per round (3 picked, 1 discarded)
-export const SOLO_PLAYS = 15;
-export const SOLO_HAND = 3;
+// ---------- Ruleset loading & validation ----------
+const COUNT_TYPES = ['spaces', 'groups', 'groupSize', 'pairs', 'emptyInBounds', 'squares', 'lines',
+  'roadNetworks', 'roadLength', 'bounds', 'cards'];
+
+// Returns a list of human-readable problems (empty = valid).
+export function validateRuleset(d) {
+  const errs = [];
+  if (!d || typeof d !== 'object') return ['Not a JSON object'];
+  if (!Array.isArray(d.zones) || d.zones.length < 1) errs.push('"zones" must be a non-empty array');
+  const zoneIds = new Set((d.zones || []).map((z) => z.id));
+  (d.zones || []).forEach((z, i) => { if (!z.id) errs.push(`zones[${i}] needs an "id"`); });
+  const checkZone = (z, where) => {
+    const list = Array.isArray(z) ? z : [z];
+    for (const id of list) if (!zoneIds.has(id)) errs.push(`${where}: unknown zone "${id}"`);
+  };
+  if (!Array.isArray(d.cards) || !d.cards.length) errs.push('"cards" must be a non-empty array');
+  (d.cards || []).forEach((c, i) => {
+    const w = `cards[${i}]${c.id ? ` (${c.id})` : ''}`;
+    if (!Array.isArray(c.layout) || c.layout.length !== 2 || c.layout.some((r) => !Array.isArray(r) || r.length !== 2)) {
+      errs.push(`${w}: "layout" must be 2 rows of 2 zones, e.g. [["home","shop"],["work","park"]]`);
+    } else c.layout.flat().forEach((z) => checkZone(z, w));
+    if (c.roads !== undefined) {
+      if (!Array.isArray(c.roads) || c.roads.length !== 2 || c.roads.some((r) => !Array.isArray(r) || r.length !== 2)) {
+        errs.push(`${w}: "roads" must be 2 rows of 2 strings, e.g. [["WE","WE"],["",""]]`);
+      } else c.roads.flat().forEach((s) => { if (typeof s !== 'string' || /[^NESW]/i.test(s)) errs.push(`${w}: road "${s}" may only use the letters N, E, S, W`); });
+    }
+    if (c.copies !== undefined && !(Number.isInteger(c.copies) && c.copies >= 0)) errs.push(`${w}: "copies" must be a whole number`);
+  });
+  if (!Array.isArray(d.goals)) errs.push('"goals" must be an array (it can be empty)');
+  (d.goals || []).forEach((g, i) => {
+    const w = `goals[${i}]${g.id ? ` (${g.id})` : ''}`;
+    if (!g.id) errs.push(`${w}: needs an "id"`);
+    const terms = g.terms || [g];
+    terms.forEach((t) => {
+      const c = t.count;
+      if (!c || !COUNT_TYPES.includes(c.what)) { errs.push(`${w}: "count.what" must be one of ${COUNT_TYPES.join(', ')}`); return; }
+      for (const f of ['zone', 'a', 'b', 'zones']) if (c[f] !== undefined) checkZone(c[f], w);
+      if (c.touching && c.touching.zone !== undefined) checkZone(c.touching.zone, w);
+    });
+  });
+  const ids = (d.goals || []).map((g) => g.id);
+  if (new Set(ids).size !== ids.length) errs.push('Goal ids must be unique');
+  return errs;
+}
+
+export function loadRuleset(d) {
+  const errs = validateRuleset(d);
+  if (errs.length) throw new Error(errs.join('\n'));
+  const r = d.rules || {};
+  ZONES.length = 0;
+  for (const k of Object.keys(ZONE_INFO)) delete ZONE_INFO[k];
+  for (const z of d.zones) {
+    ZONES.push(z.id);
+    ZONE_INFO[z.id] = { name: z.name || z.id, color: z.color || '#cccccc', icon: z.icon || z.id.slice(0, 1).toUpperCase(),
+      largestGroupPoints: z.largestGroupPoints ?? 1 };
+  }
+  R.name = d.name || 'Custom';
+  R.maxOverlap = r.maxOverlap ?? 2;
+  R.roadNetworkPoints = r.roadNetworkPoints ?? -1;
+  R.goalsPerGame = r.goalsPerGame ?? 3;
+  R.solo = { plays: 15, hand: 3, ranks: [[0, 'Unranked']], ...(r.solo || {}) };
+  R.draft = { rounds: 5, hand: 4, ...(r.draft || {}) };
+  R.cards = d.cards.map((c, i) => ({
+    def: c.id || 'card' + (i + 1),
+    copies: c.copies ?? 1,
+    cells: c.layout.flat(),
+    roads: (c.roads || [['', ''], ['', '']]).flat().map((s) => [...s.toUpperCase()].reduce((m, ch) => m | SIDE_BITS[ch], 0)),
+  }));
+  R.goals = d.goals.filter((g) => g.enabled !== false);
+  R.data = d;
+  return R;
+}
 
 // ---------- RNG ----------
 export function makeRng(seed) {
@@ -46,15 +117,6 @@ export function shuffle(arr, rng) {
 
 // ---------- Cards ----------
 // A card is a 2×2 block. cells/roads are indexed 0=(top-left) 1=(top-right) 2=(bottom-left) 3=(bottom-right).
-const ROAD_TEMPLATES = [
-  { w: 3, roads: [W | E, W | E, 0, 0] }, // straight
-  { w: 3, roads: [W | S, 0, N | E, W | E] }, // S-bend
-  { w: 2, roads: [W | E, W | S, 0, N | S] }, // corner
-  { w: 2, roads: [W | E, W | E | S, 0, N | S] }, // tee
-  { w: 1, roads: [0, 0, W | E, W] }, // dead end
-  { w: 1, roads: [N | S, 0, N | S, 0] }, // straight (offset)
-  { w: 1, roads: [0, 0, 0, 0] }, // no road
-];
 
 // Rotate a card's 4 cells 90° clockwise `times` times. Returns {cells, roads}.
 export function rotated(card, times) {
@@ -73,17 +135,15 @@ export function cardCells(card, rot, x, y) {
   return [0, 1, 2, 3].map((i) => ({ x: x + (i & 1), y: y + (i >> 1), z: cells[i], r: roads[i] }));
 }
 
-export function makeDeck(count, rng, idStart = 0) {
-  const total = ROAD_TEMPLATES.reduce((s, t) => s + t.w, 0);
+// Build a shuffled deck of `count` cards from the ruleset. If the ruleset has fewer cards than
+// needed, further shuffled copies of the whole set are added. Each dealt card gets a unique id.
+export function makeDeck(count, rng) {
+  const pool = [];
+  for (const c of R.cards) for (let i = 0; i < c.copies; i++) pool.push(c);
+  if (!pool.length) throw new Error('Ruleset has no cards');
   const deck = [];
-  for (let n = 0; n < count; n++) {
-    const cells = shuffle(ZONES.slice(), rng); // every card has exactly one of each zone
-    let pick = rng() * total, tpl = ROAD_TEMPLATES[0];
-    for (const t of ROAD_TEMPLATES) { if ((pick -= t.w) < 0) { tpl = t; break; } }
-    const base = rotated({ cells: [0, 1, 2, 3], roads: tpl.roads }, Math.floor(rng() * 4));
-    deck.push({ id: idStart + n, cells, roads: base.roads });
-  }
-  return deck;
+  while (deck.length < count) deck.push(...shuffle(pool.slice(), rng));
+  return deck.slice(0, count).map((c, i) => ({ id: i, def: c.def, cells: c.cells.slice(), roads: c.roads.slice() }));
 }
 
 // ---------- City ----------
@@ -116,7 +176,9 @@ export class City {
       for (const d of DIRS) if (this.cells.has(key(c.x + d.dx, c.y + d.dy))) touch = true;
     }
     if (!touch) return { ok: false, reason: 'Must touch your city', overlap };
-    if (overlap > MAX_OVERLAP) return { ok: false, reason: `Can cover at most ${MAX_OVERLAP} spaces`, overlap };
+    if (overlap > R.maxOverlap) {
+      return { ok: false, reason: R.maxOverlap ? `Can cover at most ${R.maxOverlap} spaces` : 'Cards may not overlap', overlap };
+    }
     return { ok: true, overlap };
   }
   // Place and return an undo record.
@@ -139,7 +201,8 @@ export class City {
 // ---------- Analysis ----------
 export function analyse(city) {
   const cells = city.cells;
-  const groups = { home: [], shop: [], work: [], park: [] };
+  const groups = {};
+  for (const z of ZONES) groups[z] = [];
   const seen = new Set();
   for (const [k, cell] of cells) {
     if (seen.has(k)) continue;
@@ -155,9 +218,9 @@ export function analyse(city) {
         if (n && n.z === cell.z && !seen.has(nk)) { seen.add(nk); stack.push(nk); }
       }
     }
-    groups[cell.z].push(members);
+    (groups[cell.z] ||= []).push(members);
   }
-  for (const z of ZONES) groups[z].sort((a, b) => b.length - a.length);
+  for (const z in groups) groups[z].sort((a, b) => b.length - a.length);
 
   // Road networks: cells with roads, linked where both sides meet.
   const roadSeen = new Set();
@@ -188,60 +251,125 @@ const neighbours = (cells, k) => {
   const [x, y] = k.split(',').map(Number);
   return DIRS.map((d) => cells.get(key(x + d.dx, y + d.dy)));
 };
+const asList = (z) => (z === undefined ? null : Array.isArray(z) ? z : [z]);
+const inZones = (list, z) => !list || list.includes(z);
 
-// ---------- Goals ----------
-const countCells = (cells, fn) => { let n = 0; for (const [k, c] of cells) if (fn(c, k)) n++; return n; };
-
-export const GOALS = [
-  { id: 'quiet', name: 'Quiet Streets', text: '+1 per Housing space with no road.',
-    score: ({ cells }) => countCells(cells, (c) => c.z === 'home' && !c.r) },
-  { id: 'main', name: 'Main Street', text: '+1 per Market space with a road.',
-    score: ({ cells }) => countCells(cells, (c) => c.z === 'shop' && c.r) },
-  { id: 'freight', name: 'Freight Lines', text: '+1 per Industry space with a road.',
-    score: ({ cells }) => countCells(cells, (c) => c.z === 'work' && c.r) },
-  { id: 'belt', name: 'Green Belt', text: '+1 per Park space next to an empty space.',
-    score: ({ cells }) => countCells(cells, (c, k) => c.z === 'park' && neighbours(cells, k).some((n) => !n)) },
-  { id: 'corner', name: 'Corner Shops', text: '+1 per Market space touching 2 or more Housing spaces.',
-    score: ({ cells }) => countCells(cells, (c, k) => c.z === 'shop' && neighbours(cells, k).filter((n) => n && n.z === 'home').length >= 2) },
-  { id: 'air', name: 'Clean Air', text: '10, minus 1 for each pair of touching Housing and Industry spaces.',
-    score: ({ cells }) => {
-      let pairs = 0;
-      for (const [k, c] of cells) if (c.z === 'home') pairs += neighbours(cells, k).filter((n) => n && n.z === 'work').length;
-      return 10 - pairs;
-    } },
-  { id: 'estates', name: 'Industrial Estates', text: '+3 per Industry group of 3 or more spaces.',
-    score: ({ groups }) => 3 * groups.work.filter((g) => g.length >= 3).length },
-  { id: 'pocket', name: 'Pocket Parks', text: '+1 per Park group of exactly 1 space.',
-    score: ({ groups }) => groups.park.filter((g) => g.length === 1).length },
-  { id: 'compact', name: 'Compact City', text: '12, minus 1 per empty space inside your city\'s bounding box (min 0).',
-    score: ({ city }) => {
-      const b = city.bounds();
-      const empty = (b.maxX - b.minX + 1) * (b.maxY - b.minY + 1) - city.cells.size;
-      return Math.max(0, 12 - empty);
-    } },
-  { id: 'mixed', name: 'Mixed Use', text: '+1 per 2×2 area containing all four zone types and spaces from at least 2 different cards.',
-    score: ({ city, cells }) => {
-      const b = city.bounds(); let n = 0;
-      for (let y = b.minY; y < b.maxY; y++) for (let x = b.minX; x < b.maxX; x++) {
-        const s = new Set(), ids = new Set();
-        for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) { const c = cells.get(key(x + dx, y + dy)); if (c) { s.add(c.z); ids.add(c.id); } }
-        if (s.size === 4 && ids.size > 1) n++;
+// ---------- Goal counters ----------
+// Each takes the analysis context and a `count` spec from the JSON, and returns a number.
+const COUNTERS = {
+  // Spaces matching filters: zone, road (true/false), touchingEmpty (true/false),
+  // touching {zone, min, max} — number of orthogonal neighbours of that zone.
+  spaces({ cells }, c) {
+    const zones = asList(c.zone);
+    const tz = c.touching && asList(c.touching.zone);
+    let n = 0;
+    for (const [k, cell] of cells) {
+      if (!inZones(zones, cell.z)) continue;
+      if (c.road !== undefined && !!cell.r !== c.road) continue;
+      if (c.touchingEmpty !== undefined || c.touching) {
+        const nb = neighbours(cells, k);
+        if (c.touchingEmpty !== undefined && nb.some((x) => !x) !== c.touchingEmpty) continue;
+        if (c.touching) {
+          const m = nb.filter((x) => x && inZones(tz, x.z)).length;
+          if (m < (c.touching.min ?? 1) || m > (c.touching.max ?? 4)) continue;
+        }
       }
-      return n;
-    } },
-  { id: 'boulevard', name: 'Boulevard', text: '+1 per 2 road spaces in your largest road network.',
-    score: ({ networks }) => Math.floor((networks[0]?.length || 0) / 2) },
-  { id: 'rows', name: 'Full Spectrum', text: '+1 per 2 rows or columns containing all four zone types.',
-    score: ({ city, cells }) => {
-      const b = city.bounds(); let n = 0;
-      for (let y = b.minY; y <= b.maxY; y++) { const s = new Set(); for (let x = b.minX; x <= b.maxX; x++) { const c = cells.get(key(x, y)); if (c) s.add(c.z); } if (s.size === 4) n++; }
-      for (let x = b.minX; x <= b.maxX; x++) { const s = new Set(); for (let y = b.minY; y <= b.maxY; y++) { const c = cells.get(key(x, y)); if (c) s.add(c.z); } if (s.size === 4) n++; }
-      return Math.floor(n / 2);
-    } },
-  { id: 'twin', name: 'Twin Towns', text: '+2 per space in your second-largest Housing group.',
-    score: ({ groups }) => 2 * (groups.home[1]?.length || 0) },
-];
-export const goalById = (id) => GOALS.find((g) => g.id === id);
+      n++;
+    }
+    return n;
+  },
+  // Number of connected groups of a zone with size between minSize and maxSize.
+  groups({ groups }, c) {
+    let n = 0;
+    for (const z of asList(c.zone) || ZONES) {
+      n += (groups[z] || []).filter((g) => g.length >= (c.minSize ?? 1) && g.length <= (c.maxSize ?? Infinity)).length;
+    }
+    return n;
+  },
+  // Size of the Nth largest group of a zone (rank 1 = largest).
+  groupSize({ groups }, c) {
+    return (groups[c.zone] || [])[(c.rank ?? 1) - 1]?.length || 0;
+  },
+  // Pairs of orthogonally touching spaces, one of zone a and one of zone b (each pair counted once).
+  pairs({ cells }, c) {
+    let n = 0;
+    for (const [k, cell] of cells) {
+      const [x, y] = k.split(',').map(Number);
+      for (const [dx, dy] of [[1, 0], [0, 1]]) {
+        const o = cells.get(key(x + dx, y + dy));
+        if (!o) continue;
+        if ((cell.z === c.a && o.z === c.b) || (cell.z === c.b && o.z === c.a)) n++;
+      }
+    }
+    return n;
+  },
+  // Empty spaces inside the city's bounding rectangle.
+  emptyInBounds({ city }) {
+    const b = city.bounds();
+    return (b.maxX - b.minX + 1) * (b.maxY - b.minY + 1) - city.cells.size;
+  },
+  // 2×2 areas that contain every zone in `zones` (default: all) and spaces from at least `minCards` cards.
+  squares({ city, cells }, c) {
+    const need = asList(c.zones) || ZONES;
+    const b = city.bounds(); let n = 0;
+    for (let y = b.minY; y < b.maxY; y++) for (let x = b.minX; x < b.maxX; x++) {
+      const s = new Set(), ids = new Set(); let filled = 0;
+      for (const [dx, dy] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+        const o = cells.get(key(x + dx, y + dy));
+        if (o) { s.add(o.z); ids.add(o.id); filled++; }
+      }
+      if (filled === 4 && need.every((z) => s.has(z)) && ids.size >= (c.minCards ?? 1)) n++;
+    }
+    return n;
+  },
+  // Rows and/or columns ("rows" | "cols" | "both") containing every zone in `zones` (default: all).
+  lines({ city, cells }, c) {
+    const need = asList(c.zones) || ZONES;
+    const dir = c.direction || 'both';
+    const b = city.bounds(); let n = 0;
+    const test = (s) => need.every((z) => s.has(z));
+    if (dir !== 'cols') for (let y = b.minY; y <= b.maxY; y++) {
+      const s = new Set(); for (let x = b.minX; x <= b.maxX; x++) { const o = cells.get(key(x, y)); if (o) s.add(o.z); }
+      if (test(s)) n++;
+    }
+    if (dir !== 'rows') for (let x = b.minX; x <= b.maxX; x++) {
+      const s = new Set(); for (let y = b.minY; y <= b.maxY; y++) { const o = cells.get(key(x, y)); if (o) s.add(o.z); }
+      if (test(s)) n++;
+    }
+    return n;
+  },
+  // Number of separate road networks.
+  roadNetworks({ networks }) { return networks.length; },
+  // Road spaces in the Nth longest road network (rank 1 = longest).
+  roadLength({ networks }, c) { return networks[(c.rank ?? 1) - 1]?.length || 0; },
+  // City size: measure "width" | "height" | "area" (of bounding box) | "spaces" (filled spaces).
+  bounds({ city }, c) {
+    const b = city.bounds();
+    const w = b.maxX - b.minX + 1, h = b.maxY - b.minY + 1;
+    return { width: w, height: h, area: w * h, spaces: city.cells.size }[c.measure || 'spaces'] ?? 0;
+  },
+  // Cards with at least `minVisible` spaces (default 1) still showing.
+  cards({ cells }, c) {
+    const vis = new Map();
+    for (const cell of cells.values()) vis.set(cell.id, (vis.get(cell.id) || 0) + 1);
+    return [...vis.values()].filter((v) => v >= (c.minVisible ?? 1)).length;
+  },
+};
+
+// Goal score = base + Σ (points × floor(count / per)), then clamped to [min, max].
+export function scoreGoal(goal, ctx) {
+  const terms = goal.terms || [goal];
+  let total = goal.base ?? 0;
+  for (const t of terms) {
+    const n = COUNTERS[t.count.what](ctx, t.count);
+    total += (t.points ?? 1) * Math.floor(n / (t.per ?? 1));
+  }
+  if (goal.min !== undefined) total = Math.max(goal.min, total);
+  if (goal.max !== undefined) total = Math.min(goal.max, total);
+  return total;
+}
+
+export const goalById = (id) => R.goals.find((g) => g.id === id);
 
 // ---------- Scoring ----------
 export function scoreCity(city, goalIds) {
@@ -249,18 +377,24 @@ export function scoreCity(city, goalIds) {
   const ctx = { city, cells: city.cells, ...a };
   const zones = {};
   let total = 0;
-  for (const z of ZONES) { zones[z] = a.groups[z][0]?.length || 0; total += zones[z]; }
-  const roadPenalty = -a.networks.length;
+  for (const z of ZONES) {
+    zones[z] = (a.groups[z][0]?.length || 0) * ZONE_INFO[z].largestGroupPoints;
+    total += zones[z];
+  }
+  const roadPenalty = a.networks.length * R.roadNetworkPoints;
   total += roadPenalty;
-  const goals = goalIds.map((id) => { const g = goalById(id); const pts = g.score(ctx); total += pts; return { id, name: g.name, pts }; });
+  const goals = goalIds.map((id) => {
+    const g = goalById(id);
+    const pts = g ? scoreGoal(g, ctx) : 0;
+    total += pts;
+    return { id, name: g ? g.name : id, pts };
+  });
   return { zones, roads: a.networks.length, roadPenalty, goals, total };
 }
 
-export const SOLO_RANKS = [
-  [0, 'Ghost Town'], [25, 'Hamlet'], [32, 'Village'], [38, 'Town'], [44, 'City'], [50, 'Metropolis'],
-];
 export function soloRank(total) {
-  let r = SOLO_RANKS[0][1];
-  for (const [t, name] of SOLO_RANKS) if (total >= t) r = name;
+  const ranks = R.solo.ranks;
+  let r = ranks[0]?.[1] || '';
+  for (const [t, name] of ranks) if (total >= t) r = name;
   return r;
 }
