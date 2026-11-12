@@ -45,6 +45,11 @@
 
       <button id="btnStart" class="btn primary wide">Start game</button>
       <button id="btnRules" class="btn ghost wide">How to play</button>
+      <div id="variantBox" class="card-box hidden">
+        <span class="field-label">Optional variants</span>
+        <label class="variant-row"><input type="checkbox" id="varEasier"> Easier — no road penalty</label>
+        <label class="variant-row"><input type="checkbox" id="varHarder"> Harder — only the best zone's largest group scores</label>
+      </div>
       <p class="fine">A fan-made card-laying city builder.</p>
     </div>
   </section>
@@ -79,7 +84,7 @@
     <aside class="panel">
       <div class="panel-head"><span id="handLabel">Your hand</span><span id="handInfo"></span></div>
       <div id="hand" class="hand"></div>
-      <div class="panel-head"><span>Goals</span></div>
+      <div class="panel-head"><span id="goalsHead">Goals</span></div>
       <div id="goals" class="goals"></div>
     </aside>
   </section>

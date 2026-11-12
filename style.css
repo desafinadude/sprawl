@@ -151,5 +151,7 @@ dialog[open] { display: flex; flex-direction: column; gap: 12px; }
 .menu-actions { display: flex; flex-direction: column; gap: 8px; }
 
 .field-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-soft); }
+.variant-row { display: flex; align-items: center; gap: 8px; font-size: 14px; margin-top: 8px; cursor: pointer; }
+.variant-row input { width: 16px; height: 16px; accent-color: #1f9d55; }
 .select { font: inherit; padding: 9px 10px; border: 2px solid var(--line); border-radius: 10px; background: #fff; color: var(--ink); width: 100%; }
 .row-btns { display: flex; gap: 8px; flex-wrap: wrap; }

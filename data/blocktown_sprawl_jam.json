@@ -1,0 +1,893 @@
+{
+  "schemaVersion": 2,
+  "name": "Blocktown — Sprawl Jam (personal variant)",
+  "description": "A personal, non-commercial Blocktown city-building variant with 18 linked layout/goal pairs, 15 city cards per game and expanded road and scoring mechanics. Requires optional v2 engine support described in the handoff.",
+  "zones": [
+    {
+      "id": "home",
+      "name": "Residential",
+      "color": "#d99058",
+      "icon": "house",
+      "largestGroupPoints": 1
+    },
+    {
+      "id": "shop",
+      "name": "Commercial",
+      "color": "#5aa9e6",
+      "icon": "shop",
+      "largestGroupPoints": 1
+    },
+    {
+      "id": "work",
+      "name": "Industrial",
+      "color": "#a7a6ac",
+      "icon": "factory",
+      "largestGroupPoints": 1
+    },
+    {
+      "id": "park",
+      "name": "Park",
+      "color": "#7cc47f",
+      "icon": "tree",
+      "largestGroupPoints": 1
+    }
+  ],
+  "rules": {
+    "maxOverlap": 4,
+    "roadNetworkPoints": -1,
+    "goalsPerGame": 3,
+    "goalSelection": {
+      "mode": "paired-card-removal",
+      "target": "sum-goal-numbers"
+    },
+    "setup": {
+      "startingCard": "draw-top",
+      "startingCardCountsAsPlay": true,
+      "visibleDrawDeckTop": true
+    },
+    "placement": {
+      "rotation": [
+        0,
+        180
+      ],
+      "connection": "overlap-or-full-block-edge",
+      "overlap": "topmost-visible",
+      "allowUnderlap": false
+    },
+    "victory": {
+      "mode": "score-at-least-target"
+    },
+    "solo": {
+      "plays": 15,
+      "hand": 3
+    },
+    "multiplayer": {
+      "mode": "sprawlopolis-pass-left",
+      "startPlayerHand": 3,
+      "otherPlayerHand": 1,
+      "passUnplayed": 2,
+      "drawAfterPlay": 1,
+      "sharedCity": true,
+      "hiddenHands": true,
+      "tableTalk": true
+    },
+    "scoring": {
+      "blockGroups": "largest-per-zone",
+      "zoneGroupAdjacency": "shared-edge",
+      "roads": "connected-visible-ports",
+      "roadSectionUnit": "visible-block",
+      "cityEdge": "exposed-sides-of-occupied-blocks"
+    },
+    "variants": {
+      "easier": {
+        "roadNetworkPoints": 0
+      },
+      "harder": {
+        "blockGroups": "single-largest-zone"
+      }
+    }
+  },
+  "goals": [
+    {
+      "id": "sprawl01",
+      "number": 1,
+      "name": "The Outskirts",
+      "text": "+1 per road that does not end at the edge of the city; -1 per road that ends at the edge of the city.",
+      "terms": [
+        {
+          "count": {
+            "what": "roadNetworks",
+            "hasCityEdgeEndpoint": false
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "roadNetworks",
+            "hasCityEdgeEndpoint": true
+          },
+          "points": -1
+        }
+      ],
+      "cardId": "B01"
+    },
+    {
+      "id": "sprawl02",
+      "number": 2,
+      "name": "Bloom Boom",
+      "text": "+1 for each row and column containing exactly 3 Parks; -1 for each row and column containing exactly 0 Parks.",
+      "terms": [
+        {
+          "count": {
+            "what": "lineMatches",
+            "direction": "both",
+            "zone": "park",
+            "exact": 3,
+            "occupiedLinesOnly": true
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "lineMatches",
+            "direction": "both",
+            "zone": "park",
+            "exact": 0,
+            "occupiedLinesOnly": true
+          },
+          "points": -1
+        }
+      ],
+      "cardId": "B02"
+    },
+    {
+      "id": "sprawl03",
+      "number": 3,
+      "name": "Go Green",
+      "text": "+1 for every Park block; -3 for every Industrial block.",
+      "terms": [
+        {
+          "count": {
+            "what": "spaces",
+            "zone": "park"
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "spaces",
+            "zone": "work"
+          },
+          "points": -3
+        }
+      ],
+      "cardId": "B03"
+    },
+    {
+      "id": "sprawl04",
+      "number": 4,
+      "name": "Block Party",
+      "text": "Count all 2×2 groups of four blocks of the same zone, including overlapping groups. Score: 0=-8, 1=-5, 2=-2, 3=+1, 4=+4, 5 or more=+7.",
+      "count": {
+        "what": "monochromeSquares",
+        "size": 2,
+        "includeOverlapping": true
+      },
+      "scoreTable": {
+        "0": -8,
+        "1": -5,
+        "2": -2,
+        "3": 1,
+        "4": 4,
+        "5+": 7
+      },
+      "cardId": "B04"
+    },
+    {
+      "id": "sprawl05",
+      "number": 5,
+      "name": "Stacks and Scrapers",
+      "text": "+2 for each Industrial block adjacent only to Commercial or Industrial blocks.",
+      "count": {
+        "what": "spaces",
+        "zone": "work",
+        "adjacent": {
+          "relation": "side",
+          "onlyZones": [
+            "shop",
+            "work"
+          ],
+          "minOccupied": 1
+        }
+      },
+      "points": 2,
+      "cardId": "B05"
+    },
+    {
+      "id": "sprawl06",
+      "number": 6,
+      "name": "Master Planned",
+      "text": "Score the size of your largest Residential group minus the size of your largest Industrial group.",
+      "terms": [
+        {
+          "count": {
+            "what": "groupSize",
+            "zone": "home",
+            "rank": 1
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "groupSize",
+            "zone": "work",
+            "rank": 1
+          },
+          "points": -1
+        }
+      ],
+      "cardId": "B06"
+    },
+    {
+      "id": "sprawl07",
+      "number": 7,
+      "name": "Central Perks",
+      "text": "+1 per Park block in the interior of the city; -2 per Park block on the city edge.",
+      "terms": [
+        {
+          "count": {
+            "what": "spaces",
+            "zone": "park",
+            "cityEdge": false
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "spaces",
+            "zone": "park",
+            "cityEdge": true
+          },
+          "points": -2
+        }
+      ],
+      "cardId": "B07"
+    },
+    {
+      "id": "sprawl08",
+      "number": 8,
+      "name": "The 'Burbs",
+      "text": "+1 for each Park adjacent to your largest Residential group; -2 for each Industrial block adjacent to that same group.",
+      "groupSelection": {
+        "zone": "home",
+        "rank": 1,
+        "ties": "maximize-goal-score"
+      },
+      "terms": [
+        {
+          "count": {
+            "what": "adjacentToSelectedGroup",
+            "zone": "park",
+            "relation": "side"
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "adjacentToSelectedGroup",
+            "zone": "work",
+            "relation": "side"
+          },
+          "points": -2
+        }
+      ],
+      "cardId": "B08"
+    },
+    {
+      "id": "sprawl09",
+      "number": 9,
+      "name": "Concrete Jungle",
+      "text": "+1 per Industrial block sharing a corner with at least one other Industrial block.",
+      "count": {
+        "what": "spaces",
+        "zone": "work",
+        "touching": {
+          "zone": "work",
+          "min": 1,
+          "relation": "corner"
+        }
+      },
+      "points": 1,
+      "cardId": "B09"
+    },
+    {
+      "id": "sprawl10",
+      "number": 10,
+      "name": "The Strip",
+      "text": "+1 per Commercial block in any ONE row or column of your choice.",
+      "count": {
+        "what": "bestLine",
+        "direction": "both",
+        "measure": "zoneCount",
+        "zone": "shop"
+      },
+      "points": 1,
+      "cardId": "B10"
+    },
+    {
+      "id": "sprawl11",
+      "number": 11,
+      "name": "Mini Marts",
+      "text": "+2 per Commercial block directly between two Residential blocks connected by the same road; straight and stepped configurations qualify.",
+      "count": {
+        "what": "roadTriplets",
+        "ends": [
+          "home",
+          "home"
+        ],
+        "center": "shop",
+        "allowTurns": true,
+        "countCenterOnce": true
+      },
+      "points": 2,
+      "cardId": "B11"
+    },
+    {
+      "id": "sprawl12",
+      "number": 12,
+      "name": "Superhighway",
+      "text": "+1 for every two road sections in your longest continuous road (rounded down).",
+      "count": {
+        "what": "roadLength",
+        "rank": 1
+      },
+      "points": 1,
+      "per": 2,
+      "cardId": "B12"
+    },
+    {
+      "id": "sprawl13",
+      "number": 13,
+      "name": "Park Hopping",
+      "text": "+3 per continuous road that begins at a Park and ends at a DIFFERENT Park.",
+      "count": {
+        "what": "roadNetworks",
+        "terminalZones": [
+          "park",
+          "park"
+        ],
+        "terminals": 2,
+        "distinctTerminalBlocks": true
+      },
+      "points": 3,
+      "cardId": "B13"
+    },
+    {
+      "id": "sprawl14",
+      "number": 14,
+      "name": "Looping Lanes",
+      "text": "+1 for each road section that is part of a completed road loop; multiple loops may score.",
+      "count": {
+        "what": "roadCycleSections",
+        "countSharedOnce": true
+      },
+      "points": 1,
+      "cardId": "B14"
+    },
+    {
+      "id": "sprawl15",
+      "number": 15,
+      "name": "Skid Row",
+      "text": "+2 per Residential block adjacent to two or more Industrial blocks.",
+      "count": {
+        "what": "spaces",
+        "zone": "home",
+        "touching": {
+          "zone": "work",
+          "min": 2
+        }
+      },
+      "points": 2,
+      "cardId": "B15"
+    },
+    {
+      "id": "sprawl16",
+      "number": 16,
+      "name": "Morning Commute",
+      "text": "+2 per continuous road that passes through both Residential and Commercial blocks.",
+      "count": {
+        "what": "roadNetworks",
+        "traversesAllZones": [
+          "home",
+          "shop"
+        ]
+      },
+      "points": 2,
+      "cardId": "B16"
+    },
+    {
+      "id": "sprawl17",
+      "number": 17,
+      "name": "Tourist Traps",
+      "text": "+1 per Commercial block on the edge of the city; +1 additional if it is on a corner edge.",
+      "terms": [
+        {
+          "count": {
+            "what": "spaces",
+            "zone": "shop",
+            "cityEdge": true
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "spaces",
+            "zone": "shop",
+            "cornerEdge": true
+          },
+          "points": 1
+        }
+      ],
+      "cardId": "B17"
+    },
+    {
+      "id": "sprawl18",
+      "number": 18,
+      "name": "Sprawlopolis",
+      "text": "Score the number of occupied blocks in the longest row plus the number in the longest column, skipping gaps.",
+      "terms": [
+        {
+          "count": {
+            "what": "bestLine",
+            "direction": "rows",
+            "measure": "occupiedCount"
+          },
+          "points": 1
+        },
+        {
+          "count": {
+            "what": "bestLine",
+            "direction": "cols",
+            "measure": "occupiedCount"
+          },
+          "points": 1
+        }
+      ],
+      "cardId": "B18"
+    }
+  ],
+  "cards": [
+    {
+      "id": "B01",
+      "layout": [
+        [
+          "shop",
+          "park"
+        ],
+        [
+          "work",
+          "home"
+        ]
+      ],
+      "roads": [
+        [
+          "NS",
+          ""
+        ],
+        [
+          "NE",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B02",
+      "layout": [
+        [
+          "work",
+          "park"
+        ],
+        [
+          "home",
+          "shop"
+        ]
+      ],
+      "roads": [
+        [
+          "NW",
+          ""
+        ],
+        [
+          "EW",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B03",
+      "layout": [
+        [
+          "shop",
+          "park"
+        ],
+        [
+          "work",
+          "home"
+        ]
+      ],
+      "roads": [
+        [
+          "NW",
+          ""
+        ],
+        [
+          "EW",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B04",
+      "layout": [
+        [
+          "park",
+          "shop"
+        ],
+        [
+          "home",
+          "work"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NS"
+        ],
+        [
+          "EW",
+          "NW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B05",
+      "layout": [
+        [
+          "home",
+          "park"
+        ],
+        [
+          "shop",
+          "work"
+        ]
+      ],
+      "roads": [
+        [
+          "NS",
+          ""
+        ],
+        [
+          "NE",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B06",
+      "layout": [
+        [
+          "work",
+          "shop"
+        ],
+        [
+          "park",
+          "home"
+        ]
+      ],
+      "roads": [
+        [
+          "NW",
+          "NS"
+        ],
+        [
+          "",
+          "NS"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B07",
+      "layout": [
+        [
+          "park",
+          "home"
+        ],
+        [
+          "work",
+          "shop"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NE"
+        ],
+        [
+          "EW",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B08",
+      "layout": [
+        [
+          "park",
+          "work"
+        ],
+        [
+          "shop",
+          "home"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NS"
+        ],
+        [
+          "SW",
+          "NS"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B09",
+      "layout": [
+        [
+          "park",
+          "home"
+        ],
+        [
+          "work",
+          "shop"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NS"
+        ],
+        [
+          "EW",
+          "NW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B10",
+      "layout": [
+        [
+          "park",
+          "work"
+        ],
+        [
+          "shop",
+          "home"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NE"
+        ],
+        [
+          "EW",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B11",
+      "layout": [
+        [
+          "park",
+          "shop"
+        ],
+        [
+          "home",
+          "work"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NE"
+        ],
+        [
+          "EW",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B12",
+      "layout": [
+        [
+          "park",
+          "home"
+        ],
+        [
+          "work",
+          "shop"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NS"
+        ],
+        [
+          "SW",
+          "NS"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B13",
+      "layout": [
+        [
+          "shop",
+          "home"
+        ],
+        [
+          "park",
+          "work"
+        ]
+      ],
+      "roads": [
+        [
+          "NW",
+          "NS"
+        ],
+        [
+          "",
+          "NS"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B14",
+      "layout": [
+        [
+          "park",
+          "work"
+        ],
+        [
+          "shop",
+          "home"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NS"
+        ],
+        [
+          "EW",
+          "NW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B15",
+      "layout": [
+        [
+          "home",
+          "work"
+        ],
+        [
+          "park",
+          "shop"
+        ]
+      ],
+      "roads": [
+        [
+          "NW",
+          "NS"
+        ],
+        [
+          "",
+          "NS"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B16",
+      "layout": [
+        [
+          "home",
+          "park"
+        ],
+        [
+          "shop",
+          "work"
+        ]
+      ],
+      "roads": [
+        [
+          "NW",
+          ""
+        ],
+        [
+          "EW",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B17",
+      "layout": [
+        [
+          "park",
+          "shop"
+        ],
+        [
+          "home",
+          "work"
+        ]
+      ],
+      "roads": [
+        [
+          "",
+          "NS"
+        ],
+        [
+          "SW",
+          "NS"
+        ]
+      ],
+      "copies": 1
+    },
+    {
+      "id": "B18",
+      "layout": [
+        [
+          "work",
+          "park"
+        ],
+        [
+          "home",
+          "shop"
+        ]
+      ],
+      "roads": [
+        [
+          "NS",
+          ""
+        ],
+        [
+          "NE",
+          "EW"
+        ]
+      ],
+      "copies": 1
+    }
+  ]
+}

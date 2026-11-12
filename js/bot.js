@@ -1,11 +1,11 @@
 // Simple greedy bots: try every card, rotation and legal spot, then pick by difficulty.
-import { scoreCity } from './rules.js';
+import { scoreCity, allowedRotations } from './rules.js';
 
 export function legalMoves(city, hand, goals) {
   const b = city.bounds();
   const moves = [];
   hand.forEach((card, hi) => {
-    for (let rot = 0; rot < 4; rot++) {
+    for (const rot of allowedRotations()) {
       for (let y = b.minY - 2; y <= b.maxY + 1; y++) {
         for (let x = b.minX - 2; x <= b.maxX + 1; x++) {
           if (!city.check(card, rot, x, y).ok) continue;
